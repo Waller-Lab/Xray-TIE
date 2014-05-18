@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LocalDebuggerCommandArguments>C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\norm C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\output 20131116_192634_GWSS_D5_Healthy_ 0 2 1.0 2.0 30 0.00828 0.0001 .00325 0.1</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>

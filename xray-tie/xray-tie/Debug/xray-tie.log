@@ -1,0 +1,37 @@
+﻿Build started 5/18/2014 1:15:02 AM.
+     1>Project "C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie\xray-tie.vcxproj" on node 2 (Build target(s)).
+     1>AddCudaCompileDeps:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /DWIN32 /D_DEBUG /D_CONSOLE /D_MBCS /I"C:\Program Files (x86)\GnuWin32\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" /I"C:\Program Files\ArrayFire\v2.1\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" /I. /FIcuda_runtime.h /c C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie\main.cpp 
+       CudaBuild:
+         Compiling CUDA source file main.cpp...
+         cmd.exe /C "C:\Users\Diivanand\AppData\Local\Temp\tmpac8bd2105b9842889a5181f187bca67b.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2012 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin"  -I"C:\Program Files (x86)\GnuWin32\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\ArrayFire\v2.1\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\main.cpp.obj "C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie\main.cpp"
+         
+         C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2012 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin"  -I"C:\Program Files (x86)\GnuWin32\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\ArrayFire\v2.1\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\main.cpp.obj "C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie\main.cpp" 
+     1>nvcc : warning : The 'compute_10' and 'sm_10' architectures are deprecated, and may be removed in a future release.
+         main.cpp
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(35): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(36): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(38): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(39): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(40): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(41): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Diivanand/git/Xray-TIE/xray-tie/xray-tie/main.cpp(42): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\xray-tie.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files (x86)\GnuWin32\lib" /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\x64" /LIBPATH:"C:\Program Files\ArrayFire\v2.1\lib64" /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\Win32" /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\Win32" libtiff.lib cuda.lib cudart.lib libafcu.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\xray-tie.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\xray-tie.lib" /MACHINE:X86 Debug\main.cpp.obj
+         "Debug\tiff_io-win.obj"
+         Debug\toolbox.obj
+         xray-tie.vcxproj -> C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\xray-tie.exe
+       PostBuildEvent:
+         echo copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\cudart*.dll" "C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\"
+         copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\cudart*.dll" "C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\"
+         :VCEnd
+         copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\cudart*.dll" "C:\Users\Diivanand\git\Xray-TIE\xray-tie\Debug\"
+         C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\cudart32_60.dll
+         C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\cudart64_60.dll
+                 2 file(s) copied.
+     1>Done Building Project "C:\Users\Diivanand\git\Xray-TIE\xray-tie\xray-tie\xray-tie.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:05.12
