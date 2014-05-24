@@ -9,4 +9,4 @@ xray_tie.exe input_folder_path outout_folder_path filename_prefix startNum endNu
 (Unit in mm where units are appropriate)
 
 Example:
-xray_tie.exe <Path to this folder>\input <Path to this folder>\output xray_tie_input_ 0 14 1.0 1.0 30 0.00828 0.0001 .00325 0.1
+xray_tie.exe [Path to this folder]\input [Path to this folder]\output xray_tie_input_ 0 14 1.0 1.0 30 0.00828 0.0001 .00325 0.1
