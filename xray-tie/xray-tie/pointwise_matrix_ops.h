@@ -279,6 +279,8 @@ __global__ void pointwiseRealScaleRealMatrix(float *c, float *a, float b, int Nx
 
     }
 }
+
+
 __global__ void pointwiseAddRealConstantToRealMatrix(float *c, float *a, float b, int Nx, int Ny){
 	/* compute idx and idy, the location of the element in the original NxN array */
     int idx = blockIdx.x*blockDim.x+threadIdx.x;

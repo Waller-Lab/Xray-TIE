@@ -12,12 +12,14 @@
 #include "pointwise_matrix_ops.h"
 #include "fourier_tools.h"
 
-//These constants may already be in <cmath> so I should switch the using those in the code but for now I'm using these
-#define E 2.71828182845904523536028747135266249775724709369995 //only used e for testing log base e at some point so could remove this now
+//This constant may already be in <cmath> so I should switch the using those in the code but for now I'm using these
 #define PI  3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679
 //Not all GPUS can handle large block sizes which is why it's only 16 for now
 #define BLOCKSIZEX 16 //should increase this to 32,64,128, etc. to see potentially better performance gains!
 #define BLOCKSIZEY 16 //should increase this to 32,64,128, etc. to see potentially better performance gains!
+
+//Global time variable
+double total_time_elapsed = 0.0;
 
 //device function delclaration
 __global__ void xrayTIEHelperKernel(cufftComplex *denominator_dev, float *freq_vector_dev, int N, float R2, float delta, float Mag, float mu, float reg);
@@ -46,7 +48,7 @@ int main(int argc, char **argv)
 		//IinVal, Mag, R2, mu, delta, ps
 		float IinVal = atof(argv[6]);
 		float Mag = atof(argv[7]);
-		Mag = 1.0; //Right now algorithm doesn't work for Mag other than 1.0, so for now Mag argument isn't supported.
+		//Mag = 1.0; //Right now algorithm doesn't work for Mag other than 1.0, so for now Mag argument isn't supported.
 		float R2 = atof(argv[8]);
 		float mu = atof(argv[9]);
 		float delta = atof(argv[10]);
@@ -69,31 +71,54 @@ int main(int argc, char **argv)
 			}else {
 				//convert image to 1D for CUDA processing
 				float *image1D = toFloatArray(image, width, height);
-				float *output = (float *) malloc(sizeof(float) * width * height);
+				
+				float *image_dev = 0;
+				float *output = 0;
 				
 				printf("\nProcessing file %s\n", filenames[i]);
 				//Process Image
-				
-				calculateThickness(output, image1D, height, width, IinVal, Mag, R2, mu, delta, ps, reg);
-				
-				
-				//End Processing of Image
-				//convert image back to 2D for outputting
-				float *image1DOut = image1D;
 
-				image = toFloat2D(image1DOut, width, height);
+				//Allocate space on GPU and then transfer the input image to the GPU
+				cudaError_t cudaStatus;
+
+				cudaStatus = cudaMalloc((void**)&image_dev, sizeof(float) * height * width);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "cudaMalloc for image_dev failed! Error Code: %d", cudaStatus);
+				}else {
+					cudaStatus = cudaMemcpy(image_dev, image1D, sizeof(float) * width * height, cudaMemcpyHostToDevice);
+					if (cudaStatus != cudaSuccess) {
+						fprintf(stderr, "cudaMemcpy for image_dev failed! Error Code: %d", cudaStatus);
+					}else{
+						output = (float *) malloc(sizeof(float) * width * height);
+						calculateThickness(output, image_dev, height, width, IinVal, Mag, R2, mu, delta, ps, reg);
+					}
+				}
+
+				//End Processing of Image
+				//convert 1D output to 2D for outputting
+				float *image1DOut = 0;
+				if(output){
+					//printMatrix1D("output", output, height, width);
+					image1DOut = output;
+				}else {
+					fprintf(stderr, "\n Output is NULL so using original image as output");
+					image1DOut = image1D;
+				}
+				float **imageOut = toFloat2D(image1DOut, width, height);
 				//output image
 				printf("\nFile Processed. Outputting to %s\n", outfilenames[i]);
-				tiff_io->write16bitImage(image, outfilenames[i], width, height);
-				
-
+				tiff_io->write16bitImage(imageOut, outfilenames[i], width, height);
+			
 				//free memory
 				free(image1D);
 				free(output);
+				free(imageOut);
+				cudaFree(image_dev);
 				delete image;
 			}
 		}
 		delete tiff_io;
+		printf("\nTotal time to process %d images: %f seconds\n", numFiles,total_time_elapsed);
 		quitProgramPrompt(true);
 		return 0;
 	}
@@ -114,7 +139,7 @@ void stateArguments(float IinVal, float Mag, float R2, float mu, float delta, fl
 /*
 Calculates thickness according to Paganin Phase paper algorithm: http://www.ncbi.nlm.nih.gov/pubmed/12000561
 */
-cudaError_t calculateThickness(float* output, float *image, int height, int width, float IinVal, float Mag, float R2, float mu, float delta, float ps, float reg)
+cudaError_t calculateThickness(float* output, float *image_dev, int height, int width, float IinVal, float Mag, float R2, float mu, float delta, float ps, float reg)
 {
 	cudaError_t cudaStatus;
 	cufftResult cufftStatus;
@@ -142,7 +167,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
 	//declare device pointers
 	float *int_seq_dev = 0;
 	float *freq_vector_dev = 0;
-	float *image_dev = 0;
+	//float *image_dev = 0;
 	float *output_dev = 0;
 	cufftComplex *image_complex_dev = 0;
 	cufftComplex *fft_output_dev = 0;
@@ -153,68 +178,70 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
 
 	//Start memory allocation of device vectors and convert/copy input image to complex device vector
 
-	//Allocate memory for 10 device vectors (potential speedup to be gained by reducing the number of device vectors used)
+	//Allocate memory for 9 device vectors (potential speedup to be gained by reducing the number of device vectors used)
 	cudaStatus = cudaMalloc((void**)&int_seq_dev, N * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for int_seq_dev failed!");
+        fprintf(stderr, "cudaMalloc for int_seq_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&freq_vector_dev, N * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for freq_vector_dev failed!");
-        goto thickness_end;
-    }
-	cudaStatus = cudaMalloc((void**)&image_dev, size * sizeof(float));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for image_dev failed!");
+        fprintf(stderr, "cudaMalloc for freq_vector_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&output_dev, size * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for output_dev failed!");
+        fprintf(stderr, "cudaMalloc for output_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&image_complex_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for image_complex_dev failed!");
+        fprintf(stderr, "cudaMalloc for image_complex_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&fft_output_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for fft_output_dev failed!");
+        fprintf(stderr, "cudaMalloc for fft_output_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&fft_shifted_output_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for fft_shifted_output_dev failed!");
+        fprintf(stderr, "cudaMalloc for fft_shifted_output_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&ifft_shifted_input_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for ifft_shifted_input_dev failed!");
+        fprintf(stderr, "cudaMalloc for ifft_shifted_input_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&ifft_output_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for ifft_output_dev failed!");
+        fprintf(stderr, "cudaMalloc for ifft_output_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
 	cudaStatus = cudaMalloc((void**)&denominator_dev, size * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc for denominator_dev failed!");
+        fprintf(stderr, "cudaMalloc for denominator_dev failed! Error Code: %d", cudaStatus);
         goto thickness_end;
     }
-
-	//copy input image host vector to device vector and scale by magnification
-	cudaStatus = cudaMemcpy(image, image_dev, size * sizeof(float), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy for image_dev failed! Error Code: %d", cudaStatus);
-        goto thickness_end;
-    }
+	
+	//scale by magnification
+	//printDeviceMatrixValues("img_dev", image_dev,N,N);
 	pointwiseRealScaleRealMatrix<<<dimGrid, dimBlock>>>(image_dev, image_dev, Mag*Mag, N, N);
+	cudaStatus = cudaDeviceSynchronize();
+	if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching pointwiseRealScaleMatrix!\n", cudaStatus);
+        goto thickness_end;
+    }
+	//printDeviceMatrixValues("img_dev_scaled", image_dev,N,N);
 	//convert input image real device vector to complex device vector
 	real2complex<<<dimGrid,dimBlock>>>(image_dev, image_complex_dev, N, N);
-
+	cudaStatus = cudaDeviceSynchronize();
+	if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching real2complex!\n", cudaStatus);
+        goto thickness_end;
+    }
+	//printDeviceComplexMatrixValues("img_complex_dev", image_complex_dev,N,N);
 	//End memory allocation of device vectors and convert/copy input image to complex device vector
 
 	//Start creation of frequency axis
@@ -225,33 +252,36 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching genIntSequence!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceMatrixValues("int_seq_dev", int_seq_dev,1,N);
 	//create omega axis
-	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, int_seq_dev, 2*PI/N, 1, N);
+	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, int_seq_dev, 2*PI/N, N, 1);
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching pointwiseRealScaleRealMatrix!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceMatrixValues("omega_freq_vector_dev", freq_vector_dev,1,N);
 	//Shift zero to center - for even case, pull back by pi, note N is even by our assumption of powers of 2
-	pointwiseAddRealConstantToRealMatrix<<<1,N>>>(freq_vector_dev, freq_vector_dev, -PI, 1, N);
+	pointwiseAddRealConstantToRealMatrix<<<1,N>>>(freq_vector_dev, freq_vector_dev, -PI, N, 1);
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addReadConstantToRealMatrix!\n", cudaStatus);
         goto thickness_end;
     }
 	//convert to cyclical frequencies (hertz) and scale by pixel size
-	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, int_seq_dev, 1/(2*PI), 1, N);
+	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, freq_vector_dev, 1/(2*PI), N, 1);
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching pointwiseRealScaleRealMatrix!\n", cudaStatus);
         goto thickness_end;
     }
-	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, int_seq_dev, 1/ps, 1, N);
+	pointwiseRealScaleRealMatrix<<<1,N>>>(freq_vector_dev, freq_vector_dev, 1/ps, N, 1);
 	cudaStatus = cudaDeviceSynchronize();
 	if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching pointwiseRealScaleRealMatrix!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceMatrixValues("freq_vector_dev after Pi shift to center", freq_vector_dev,1,N);
 	//End creation of frequency axis
 
 	//Fourier Transform image and scale according to Paginin phase algorithm
@@ -269,8 +299,15 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching fftShift2D!\n", cudaStatus);
         goto thickness_end;
     }
-
+	
+	//printDeviceComplexMatrixValues("fft_shifted_output_dev", fft_shifted_output_dev, N,N);
 	pointwiseRealScaleComplexMatrix<<<dimGrid,dimBlock>>>(fft_shifted_output_dev, fft_shifted_output_dev, mu/IinVal, N, N);
+	cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after pointwiseRealScaleComplexMatrix!\n", cudaStatus);
+        goto thickness_end;
+    }
+	//printDeviceComplexMatrixValues("fft_shifted_output_dev scaled", fft_shifted_output_dev, N,N);
 	//End Fourier Transform and scaling
 
 	//Create the denominator shown in the Paganin phase algorithm
@@ -280,6 +317,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching xrayTIEHelperKernel!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceComplexMatrixValues("denominator_dev", denominator_dev, N,N);
 	//End creation of denominator
 
 	//pointwise divide, ifft, pointwise log, and inverse-mu-scaling as shown in Paganin phase algorithm
@@ -290,6 +328,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching xrayTIEHelperKernel!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceComplexMatrixValues("inv_term (as mentioned in matlab algorithm)", fft_shifted_output_dev, N,N);
 	//ifftshift
 	fftShift2D<<<dimGrid, dimBlock>>>(ifft_shifted_input_dev, fft_shifted_output_dev, N);
 	cudaStatus = cudaDeviceSynchronize();
@@ -312,7 +351,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching complex2real_scaled!\n", cudaStatus);
         goto thickness_end;
     }
-
+	//printDeviceMatrixValues("ifftReal", output_dev, N,N);
 	//take pointwise log and scale to obtain projected thickness!
 	//pointwise natural log
 	pointwiseNaturalLogRealMatrix<<<dimGrid, dimBlock>>>(output_dev, output_dev, N, N);
@@ -321,6 +360,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching complex2real_scaled!\n", cudaStatus);
         goto thickness_end;
     }
+	//printDeviceMatrixValues("logOutput (like in matlab algorithm)", output_dev, N,N);
 	//pointwise real scale
 	pointwiseRealScaleRealMatrix<<<dimGrid, dimBlock>>>(output_dev, output_dev, -(1/mu), N, N);
 	cudaStatus = cudaDeviceSynchronize();
@@ -328,7 +368,7 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching pointwiseRealScaleRealMatrix!\n", cudaStatus);
         goto thickness_end;
     }
-
+	//printDeviceMatrixValues("output", output_dev, N,N);
 	//Transfer output device vector to our host output vector and we are done!
 	cudaStatus = cudaMemcpy(output, output_dev, size * sizeof(float), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
@@ -340,7 +380,6 @@ cudaError_t calculateThickness(float* output, float *image, int height, int widt
 thickness_end:
 	cudaFree(int_seq_dev);
 	cudaFree(freq_vector_dev);
-	cudaFree(image_dev);
 	cudaFree(output_dev);
 	cudaFree(image_complex_dev);
 	cudaFree(fft_output_dev);
@@ -355,6 +394,7 @@ thickness_end:
 	std::clock_t end = std::clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	std::cout << "\nDone. Took " << elapsed_secs << " seconds" << std::endl;
+	total_time_elapsed += elapsed_secs;
 	return cudaStatus;
 }
 

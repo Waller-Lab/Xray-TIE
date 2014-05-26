@@ -33,6 +33,8 @@ void printMatrix1D(char *matrixName, float *matrix, int height, int width);
 void printMatrix2D(char *matrixName, float **matrix, int height, int width);
 void printComplexMatrix1D(char *matrixName, cufftComplex *matrix, int height, int width);
 void printComplexMatrix2D(char *matrixName, cufftComplex **matrix, int height, int width);
+void printDeviceMatrixValues(char *name, float *dev_float_ptr, int height, int width);
+void printDeviceComplexMatrixValues(char *name, cufftComplex *dev_cufft_ptr, int height, int width);
 cufftComplex *toComplexArray(float *array, int size);
 float *toRealArray(cufftComplex *array, int size);
 inline int roundUpDiv(int num, int denom){	return (num/denom) + (!(num%denom)? 0 : 1); }
@@ -200,6 +202,38 @@ void printComplexMatrix2D(char *matrixName, cufftComplex **matrix, int height, i
 			}
 		}
 	}
+}
+
+void printDeviceMatrixValues(char *name, float *dev_float_ptr, int height, int width)
+{
+	int size = height * width;
+	float *host_ptr = (float *) malloc(sizeof(float)*size);
+
+	//Transfer output device vector to our host output vector and we are done!
+	cudaError_t cudaStatus = cudaMemcpy(host_ptr, dev_float_ptr, size * sizeof(float), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "Failed to print values. cudaMemcpy failed! ErrorCode: %d", cudaStatus);  
+    }else{
+		printMatrix1D(name, host_ptr,height, width);
+	}
+
+	free(host_ptr);
+}
+
+void printDeviceComplexMatrixValues(char *name, cufftComplex *dev_cufft_ptr, int height, int width)
+{
+	int size = height * width;
+	cufftComplex *host_ptr = (cufftComplex *) malloc(sizeof(cufftComplex)*size);
+
+	//Transfer output device vector to our host output vector and we are done!
+	cudaError_t cudaStatus = cudaMemcpy(host_ptr, dev_cufft_ptr, size * sizeof(cufftComplex), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Failed to print values. cudaMemcpy failed! ErrorCode: %d", cudaStatus);
+    }else{
+		printComplexMatrix1D(name, host_ptr,height, width);
+	}
+
+	free(host_ptr);
 }
 
 cufftComplex *toComplexArray(float *array, int size){
